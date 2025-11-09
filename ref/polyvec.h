@@ -33,4 +33,8 @@ void polyvec_reduce(polyvec *r);
 #define polyvec_add KYBER_NAMESPACE(polyvec_add)
 void polyvec_add(polyvec *r, const polyvec *a, const polyvec *b);
 
+#define polyvec_sub KYBER_NAMESPACE(polyvec_sub)
+void polyvec_sub(polyvec *r, const polyvec *a, const polyvec *b);
+
 #endif
+

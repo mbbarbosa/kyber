@@ -3,7 +3,7 @@
 #include "rej_uniform.h"
 #include "poly.h"
 #include "polyvec.h"
-
+#include "symmetric.h"
 
 /*************************************************
 * Name:        rej_uniform
@@ -18,7 +18,7 @@
 *
 * Returns number of sampled 16-bit integers (at most len)
 **************************************************/
-unsigned int rej_uniform(int16_t *r,
+static unsigned int rej_uniform(int16_t *r,
                                 unsigned int len,
                                 const uint8_t *buf,
                                 unsigned int buflen)
@@ -40,3 +40,86 @@ unsigned int rej_uniform(int16_t *r,
 
   return ctr;
 }
+
+/*************************************************
+* Name:        gen_matrix
+*
+* Description: Deterministically generate matrix A (or the transpose of A)
+*              from a seed. Entries of the matrix are polynomials that look
+*              uniformly random. Performs rejection sampling on output of
+*              a XOF
+*
+* Arguments:   - polyvec *a: pointer to ouptput matrix A
+*              - const uint8_t *seed: pointer to input seed
+*              - int transposed: boolean deciding whether A or A^T is generated
+**************************************************/
+#if(XOF_BLOCKBYTES % 3)
+#error "Implementation of gen_matrix assumes that XOF_BLOCKBYTES is a multiple of 3"
+#endif
+
+#define GEN_MATRIX_NBLOCKS ((12*KYBER_N/8*(1 << 12)/KYBER_Q + XOF_BLOCKBYTES)/XOF_BLOCKBYTES)
+// Not static for benchmarking
+void gen_matrix(polyvec *a, const uint8_t seed[KYBER_SYMBYTES], int transposed)
+{
+  unsigned int ctr, i, j;
+  unsigned int buflen;
+  uint8_t buf[GEN_MATRIX_NBLOCKS*XOF_BLOCKBYTES];
+  xof_state state;
+
+  for(i=0;i<KYBER_K;i++) {
+    for(j=0;j<KYBER_K;j++) {
+      if(transposed)
+        xof_absorb(&state, seed, i, j);
+      else
+        xof_absorb(&state, seed, j, i);
+
+      xof_squeezeblocks(buf, GEN_MATRIX_NBLOCKS, &state);
+      buflen = GEN_MATRIX_NBLOCKS*XOF_BLOCKBYTES;
+      ctr = rej_uniform(a[i].vec[j].coeffs, KYBER_N, buf, buflen);
+
+      while(ctr < KYBER_N) {
+        xof_squeezeblocks(buf, 1, &state);
+        buflen = XOF_BLOCKBYTES;
+        ctr += rej_uniform(a[i].vec[j].coeffs + ctr, KYBER_N - ctr, buf, buflen);
+      }
+    }
+  }
+}
+
+
+/*************************************************
+* Name:        gen_vector
+*
+* Description: Deterministically generate vector v from a seed. 
+*              Entries of the vector are polynomials that look
+*              uniformly random. Performs rejection sampling on 
+*              output of a XOF
+*
+* Arguments:   - polyvec *a: pointer to output vector v
+*              - const uint8_t *seed: pointer to input seed
+**************************************************/
+
+void gen_vector(polyvec *v, const uint8_t seed[KYBER_SYMBYTES])
+{
+  unsigned int ctr, i, k;
+  unsigned int buflen, off;
+  uint8_t buf[GEN_MATRIX_NBLOCKS*XOF_BLOCKBYTES+2];
+  xof_state state;
+
+  for(i=0;i<KYBER_K;i++) {
+    xof_absorb(&state, seed, i, 0); // take row 0
+    xof_squeezeblocks(buf, GEN_MATRIX_NBLOCKS, &state);
+    buflen = GEN_MATRIX_NBLOCKS*XOF_BLOCKBYTES;
+    ctr = rej_uniform(v->vec[i].coeffs, KYBER_N, buf, buflen);
+
+    while(ctr < KYBER_N) {
+      off = buflen % 3;
+      for(k = 0; k < off; k++)
+        buf[k] = buf[buflen - off + k];
+      xof_squeezeblocks(buf + off, 1, &state);
+      buflen = off + XOF_BLOCKBYTES;
+      ctr += rej_uniform(v->vec[i].coeffs + ctr, KYBER_N - ctr, buf, buflen);
+    }
+  }
+}
+
