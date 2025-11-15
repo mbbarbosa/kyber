@@ -9,7 +9,7 @@
 #error "Implementation of gen_matrix assumes that XOF_BLOCKBYTES is a multiple of 3"
 #endif
 
-#define TEMPO_ALGORITHM 1
+//#define TEMPO_ALGORITHM 1
 #ifndef TEMPO_ALGORITHM
 
 
