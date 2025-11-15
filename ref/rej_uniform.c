@@ -96,43 +96,36 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state)
 * Returns number of sampled 16-bit integers (at most len)
 **************************************************/
 
-#define lt_1mask(x,y) ((((int16_t) x) - ((int16_t) y)) >> 15)  // 0xffffffff if  x < y, 0x00000000 otherwise
-#define diff_1mask(x,y) ((0-((int16_t)(x-y) & 0x7fff)) >> 15)    // 0xffffffff if x != y, 0x00000000 otherwise
-#define eq_1mask(x,y) (~diff_1mask(x,y))                     // 0xffffffff if x == y, 0x00000000 otherwise
+#define lt_1mask(x,y) (uint16_t)((((int16_t) x) - ((int16_t) y)) >> 15)      // 0xffffffff if  x < y, 0x00000000 otherwise
+#define diff_1mask(x,y) (uint16_t)((0-((int16_t)((x^y) & 0x7fff))) >> 15)    // 0xffffffff if x != y, 0x00000000 otherwise
+#define eq_1mask(x,y) (uint16_t)(~diff_1mask(x,y))                           // 0xffffffff if x == y, 0x00000000 otherwise
 
 static unsigned int rej_uniform(int16_t *p, unsigned int ctr,
                                 const uint8_t *buf,
                                 unsigned int buflen)
 {
   unsigned int pos;
-  uint16_t d1, d2, mask, acceptable_d1, acceptable_d2, flag, match;
+  uint16_t d1, d2, acceptable_d1, acceptable_d2, match;
 
   pos = 0;
   while(pos + 3 <= buflen) {
-        d1 = buf[pos] | ((uint16_t)buf[pos+1] & 0xf << 8);
-        d2 = buf[pos+1] >> 4 | ((uint16_t)buf[pos+2] << 4);
-        pos += 3;
+    d1 = ((buf[pos+0] >> 0) | ((uint16_t)buf[pos+1] << 8)) & 0xFFF;
+    d2 = ((buf[pos+1] >> 4) | ((uint16_t)buf[pos+2] << 4)) & 0xFFF;
+    pos += 3;
 
-        acceptable_d1 = lt_1mask(d1,KYBER_Q); 
-        acceptable_d2 = lt_1mask(d2,KYBER_Q); 
-        
-        flag = 0;
-        for (unsigned int j = 0; j < KYBER_N; j++) {
-                match = eq_1mask(j,ctr);
-                mask = match & acceptable_d1;
-                p[j] = (~match & p[j]) | (d1 & mask);
-                flag |= mask & 1;
-        }
-        ctr += flag;
-        
-        flag = 0;
-        for (unsigned int j = 0; j < KYBER_N; j++) {
-                match = eq_1mask(j,ctr);
-                mask = match & acceptable_d2;
-                p[j] = (~match & p[j]) | (d2 & mask);
-                flag |= mask & 1;
-        }
-        ctr += flag;
+    for (unsigned int j = 0; j < KYBER_N; j++) {
+      match = eq_1mask(j,ctr);
+      p[j] = (~match & p[j]) | (match & d1);
+    }
+    acceptable_d1 = lt_1mask(d1,KYBER_Q); 
+    ctr += acceptable_d1 & 1;
+    
+    for (unsigned int j = 0; j < KYBER_N; j++) {
+      match = eq_1mask(j,ctr);
+      p[j] = (~match & p[j]) | (match & d2);
+    }
+    acceptable_d2 = lt_1mask(d2,KYBER_Q); 
+    ctr += acceptable_d2 & 1;
   }
 
   return ctr;
@@ -149,14 +142,14 @@ static unsigned int rej_uniform(int16_t *p, unsigned int ctr,
 *              - const xof_state *state: pointer to XOF state after absorb
 
 **************************************************/
-#define MAX_ITER 10
+#define MAX_ITER 8
 
 static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
   uint16_t ctr = 0;
   unsigned int k, buflen, off;
   uint8_t buf[XOF_BLOCKBYTES+2];
 
-  xof_squeezeblocks(buf, XOF_BLOCKBYTES, state);
+  xof_squeezeblocks(buf, 1, state);
   buflen = XOF_BLOCKBYTES;
   ctr = rej_uniform(a, ctr, buf, buflen);
 
