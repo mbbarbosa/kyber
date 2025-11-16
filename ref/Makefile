@@ -20,11 +20,20 @@ test: \
   test/test_vectors512 \
   test/test_vectors768 \
   test/test_vectors1024 \
+  test/test_kyber512_tmp1 \
+  test/test_kyber768_tmp1 \
+  test/test_kyber1024_tmp1 \
+  test/test_vectors512_tmp1 \
+  test/test_vectors768_tmp1 \
+  test/test_vectors1024_tmp1 \
 
 speed: \
   test/test_speed512 \
   test/test_speed768 \
   test/test_speed1024 \
+  test/test_speed512_tmp1 \
+  test/test_speed768_tmp1 \
+  test/test_speed1024_tmp1 \
 
 shared: \
   lib/libpqcrystals_kyber512_ref.so \
@@ -36,6 +45,9 @@ nistkat: \
 	nistkat/PQCgenKAT_kem512 \
 	nistkat/PQCgenKAT_kem768 \
 	nistkat/PQCgenKAT_kem1024 \
+	nistkat/PQCgenKAT_kem512_tmp1 \
+	nistkat/PQCgenKAT_kem768_tmp1 \
+	nistkat/PQCgenKAT_kem1024_tmp1 \
 
 
 lib/libpqcrystals_fips202_ref.so: fips202.c fips202.h
@@ -90,6 +102,44 @@ nistkat/PQCgenKAT_kem768: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_ke
 nistkat/PQCgenKAT_kem1024: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
 	$(CC) $(NISTFLAGS) -DKYBER_K=4 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
 
+# TEMPO ALGORITHM1 VARIANTS
+
+test/test_kyber512_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -o $@
+
+test/test_kyber768_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -o $@
+
+test/test_kyber1024_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -o $@
+
+test/test_vectors512_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_vectors.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=2 $(SOURCESKECCAK) test/test_vectors.c -o $@
+
+test/test_vectors768_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_vectors.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=3 $(SOURCESKECCAK) test/test_vectors.c -o $@
+
+test/test_vectors1024_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_vectors.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=4 $(SOURCESKECCAK) test/test_vectors.c -o $@
+
+test/test_speed512_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -o $@
+
+test/test_speed768_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -o $@
+
+test/test_speed1024_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -o $@
+
+nistkat/PQCgenKAT_kem512_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=2 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
+
+nistkat/PQCgenKAT_kem768_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=3 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
+
+nistkat/PQCgenKAT_kem1024_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=4 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
+
 clean:
 	-$(RM) -f *.gcno *.gcda *.lcov *.o *.so
 	-$(RM) -f test/test_kyber512
@@ -98,12 +148,18 @@ clean:
 	-$(RM) -f test/test_vectors512
 	-$(RM) -f test/test_vectors768
 	-$(RM) -f test/test_vectors1024
-	-$(RM) -f test/test_speed512
-	-$(RM) -f test/test_speed768
-	-$(RM) -f test/test_speed1024
-	-$(RM) -f nistkat/PQCgenKAT_kem512
-	-$(RM) -f nistkat/PQCgenKAT_kem768
-	-$(RM) -f nistkat/PQCgenKAT_kem1024
+	-$(RM) -f test/test_kyber512_tmp1
+	-$(RM) -f test/test_kyber768_tmp1
+	-$(RM) -f test/test_kyber1024_tmp1
+	-$(RM) -f test/test_vectors512_tmp1
+	-$(RM) -f test/test_vectors768_tmp1
+	-$(RM) -f test/test_vectors1024_tmp1
+	-$(RM) -f test/test_speed512_tmp1
+	-$(RM) -f test/test_speed768_tmp1
+	-$(RM) -f test/test_speed1024_tmp1
+	-$(RM) -f nistkat/PQCgenKAT_kem512_tmp1
+	-$(RM) -f nistkat/PQCgenKAT_kem768_tmp1
+	-$(RM) -f nistkat/PQCgenKAT_kem1024_tmp1
 	-$(RM) -f nistkat/*.req
 	-$(RM) -f nistkat/*.rsp
 	-$(RM) -rf lib/
