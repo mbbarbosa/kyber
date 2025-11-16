@@ -1,7 +1,7 @@
 CC ?= /usr/bin/cc
 CFLAGS += -Wall -Wextra -Wpedantic -Wmissing-prototypes -Wredundant-decls \
-  -Wshadow -Wpointer-arith -O3 -fomit-frame-pointer #-z noexecstack
-NISTFLAGS += -Wno-unused-result -O3 -fomit-frame-pointer
+  -Wshadow -Wpointer-arith -O3 -fomit-frame-pointer #-z noexecstack 
+NISTFLAGS += -Wno-unused-result -O3 -fomit-frame-pointer -L/opt/homebrew/opt/openssl/lib  -I/opt/homebrew/opt/openssl/include
 RM = /bin/rm
 
 SOURCES = kem.c indcpa.c polyvec.c poly.c ntt.c cbd.c reduce.c verify.c rej_uniform.c 

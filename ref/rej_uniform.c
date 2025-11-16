@@ -9,7 +9,7 @@
 #error "Implementation of gen_matrix assumes that XOF_BLOCKBYTES is a multiple of 3"
 #endif
 
-//#define TEMPO_ALGORITHM 1
+#define TEMPO_ALGORITHM 1
 #ifndef TEMPO_ALGORITHM
 
 
@@ -127,7 +127,6 @@ static unsigned int rej_uniform(int16_t *p, unsigned int ctr,
     acceptable_d2 = lt_1mask(d2,KYBER_Q); 
     ctr += acceptable_d2 & 1;
   }
-
   return ctr;
 }
 
@@ -142,15 +141,17 @@ static unsigned int rej_uniform(int16_t *p, unsigned int ctr,
 *              - const xof_state *state: pointer to XOF state after absorb
 
 **************************************************/
-#define MAX_ITER 8
+#define MAX_ITER (400/(XOF_BLOCKBYTES*8/12)+1)
 
 static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
-  uint16_t ctr = 0;
+  uint16_t ctr;
   unsigned int k, buflen, off;
   uint8_t buf[XOF_BLOCKBYTES+2];
 
   xof_squeezeblocks(buf, 1, state);
   buflen = XOF_BLOCKBYTES;
+
+  ctr = 0;
   ctr = rej_uniform(a, ctr, buf, buflen);
 
   for (unsigned int iter = 0; iter < MAX_ITER; iter++) {
@@ -158,7 +159,7 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
     for(k = 0; k < off; k++) buf[k] = buf[buflen - off + k];
     xof_squeezeblocks(buf + off, 1, state);
     buflen = off + XOF_BLOCKBYTES;
-    ctr += rej_uniform(a, ctr, buf, buflen);
+    ctr = rej_uniform(a, ctr, buf, buflen);
   }
 }
 
