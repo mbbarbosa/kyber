@@ -8,6 +8,7 @@
 #include "../polyvec.h"
 #include "../poly.h"
 #include "../randombytes.h"
+#include "../rej_uniform.h"
 #include "cpucycles.h"
 #include "speed_print.h"
 
