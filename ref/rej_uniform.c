@@ -207,7 +207,7 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
     BN_CTX_free(bn_ctx);
 }
 
-#elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 3a)
+#elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 3)
 
 #include <openssl/bn.h>
 
@@ -248,7 +248,7 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
     BN_CTX_free(bn_ctx);
 }
 
-#elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 3b)
+#elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 4)
 
 /*
 TODO: check PQCLEAN_MLKEM512_CLEAN_montgomery_reduce(int32_t a) and
@@ -279,14 +279,14 @@ m = m0 \in [0,2^16) = KYBER_Q = 3329
 x = (x1,x0) \in [0,2^32)
 mu = floor(2^32/m) = 1290167
 */
-uint16_t barrett_reduce(uint32_t x) {
+static uint16_t barrett_reduce32(uint32_t x) {
     uint32_t q3, r;
  
     q3 = ((uint64_t)x * mu) >> 32;
     r = x - (uint32_t)(q3 * m); 
 
     uint32_t mask = ~lt_1mask(r,m); // mask is 0 if r < m, 0xffffffff otherwise
-    r -= (mask1 & m);
+    r -= (mask & m);
     return (uint16_t)r;
 }
 
@@ -302,13 +302,13 @@ r = x `mod` m
      (x1 `mod` m) * (2^32 `mod` m)  +
      (x0 `mod` m)) `mod` m
 */
-uint16_t barrett_reduce192(uint32_t x[6]) {
+static uint16_t barrett_reduce192(uint32_t x[6]) {
     uint32_t temp = 0;
 
     for (int i = 5; i >= 0; i--)
-        temp += (uint32_t)barrett_reduce(x[i]) * (uint32_t)pow2_mod_m[i];
+        temp += (uint32_t)barrett_reduce32(x[i]) * (uint32_t)pow2_mod_m[i];
     
-    return barrett_reduce(temp);
+    return barrett_reduce32(temp);
 }
 
 #define BYTES_PER_COEFF 24
@@ -317,16 +317,13 @@ uint16_t barrett_reduce192(uint32_t x[6]) {
 
 static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
     uint8_t buf[BUF_SIZE]; 
+    uint32_t x[6];
 
     xof_squeezeblocks(buf, XOF_BLOCKS, state);
-    keccak_state ctx;
 
     for (size_t j = 0; j < KYBER_N; j++) {
         for (int i = 0; i < 6; i++) {
-            x[i] = ( uint32_t)buf[j * BYTES_PER_COEFF + i * 4 + 0]        |
-                   ((uint32_t)buf[j * BYTES_PER_COEFF + i * 4 + 1] << 8)  |
-                   ((uint32_t)buf[j * BYTES_PER_COEFF + i * 4 + 2] << 16) |
-                   ((uint32_t)buf[j * BYTES_PER_COEFF + i * 4 + 3] << 24);
+            x[i] = *((uint32_t*)(buf+j * BYTES_PER_COEFF) + i);
         }
         a[j] = barrett_reduce192(x);
     }
