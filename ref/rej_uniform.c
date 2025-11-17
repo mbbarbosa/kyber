@@ -268,6 +268,8 @@ const uint16_t pow2_mod_m[] = {
     2982  // 2^{i*32} = 2^160 mod 3329 (for x5)
 };
 
+#define lt_1mask(x,y) (uint32_t)((((int32_t) x) - ((int32_t) y)) >> 31)      // 0xffffffffffffffff if x < y and 0 otherwise
+
 /*
 Based on Barrett reduction described in HAC, Algorithm 14.42.
 
@@ -278,26 +280,13 @@ x = (x1,x0) \in [0,2^32)
 mu = floor(2^32/m) = 1290167
 */
 uint16_t barrett_reduce(uint32_t x) {
-    uint64_t q3;
-    uint32_t r;
-
+    uint32_t q3, r;
+ 
     q3 = ((uint64_t)x * mu) >> 32;
-    r = x - (uint32_t)(q3 * (uint32_t)m);
+    r = x - (uint32_t)(q3 * m); 
 
-    // if r < 0 then r = r + 2^32
-    // r is declared as uint32_t, so it is *unsigned*
-    // we check if r would have been negative by checking if the MSB is set
-    uint32_t mask = ((int32_t)r) >> 31; // mask is 0xFFFFFFFF if r is negative, 0 otherwise
-    r += (mask & 0x100000000ULL);
-
-    // while r >= m do r = r - m, at most 2 loops
-    // this follows from HAC, Fact 14.43
-    // TODO: check if we can remove 1 loop, based on this result: https://blog.zksecurity.xyz/posts/barrett-tighter-bound/ 
-    uint32_t mask1 = -(r >= m); // mask1 is 0xFFFFFFFF if r >= m, 0 otherwise
+    uint32_t mask = ~lt_1mask(r,m); // mask is 0 if r < m, 0xffffffff otherwise
     r -= (mask1 & m);
-    uint32_t mask2 = -(r >= m); // mask2 is 0xFFFFFFFF if r >= m, 0 otherwise
-    r -= (mask2 & m);
-
     return (uint16_t)r;
 }
 
@@ -322,23 +311,22 @@ uint16_t barrett_reduce192(uint32_t x[6]) {
     return barrett_reduce(temp);
 }
 
-void algorithm3b(uint16_t a[KYBER_N], const uint8_t seed[34]) {
-    keccak_state ctx;
-    uint8_t C[24];
-    uint32_t x[6];
+#define BYTES_PER_COEFF 24
+#define XOF_BLOCKS (BYTES_PER_COEFF * KYBER_N / XOF_BLOCKBYTES  + 1)
+#define BUF_SIZE (XOF_BLOCKS * XOF_BLOCKBYTES)
 
-    shake128_init(&ctx);
-    shake128_absorb(&ctx, seed, 34);
-    shake128_finalize(&ctx);
+static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
+    uint8_t buf[BUF_SIZE]; 
+
+    xof_squeezeblocks(buf, XOF_BLOCKS, state);
+    keccak_state ctx;
 
     for (size_t j = 0; j < KYBER_N; j++) {
-        shake128_squeeze(C, 24, &ctx);
-        
         for (int i = 0; i < 6; i++) {
-            x[i] = ( uint32_t)C[i * 4 + 0]        |
-                   ((uint32_t)C[i * 4 + 1] << 8)  |
-                   ((uint32_t)C[i * 4 + 2] << 16) |
-                   ((uint32_t)C[i * 4 + 3] << 24);
+            x[i] = ( uint32_t)buf[j * BYTES_PER_COEFF + i * 4 + 0]        |
+                   ((uint32_t)buf[j * BYTES_PER_COEFF + i * 4 + 1] << 8)  |
+                   ((uint32_t)buf[j * BYTES_PER_COEFF + i * 4 + 2] << 16) |
+                   ((uint32_t)buf[j * BYTES_PER_COEFF + i * 4 + 3] << 24);
         }
         a[j] = barrett_reduce192(x);
     }

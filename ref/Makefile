@@ -32,6 +32,9 @@ test: \
   test/test_kyber512_tmp3a \
   test/test_kyber768_tmp3a \
   test/test_kyber1024_tmp3a \
+  test/test_kyber512_tmp3b \
+  test/test_kyber768_tmp3b \
+  test/test_kyber1024_tmp3b \
 
 speed: \
   test/test_speed512 \
@@ -46,6 +49,9 @@ speed: \
   test/test_speed512_tmp3a \
   test/test_speed768_tmp3a \
   test/test_speed1024_tmp3a \
+  test/test_speed512_tmp3b \
+  test/test_speed768_tmp3b \
+  test/test_speed1024_tmp3b \
 
 shared: \
   lib/libpqcrystals_kyber512_ref.so \
@@ -60,7 +66,12 @@ nistkat: \
 	nistkat/PQCgenKAT_kem512_tmp1 \
 	nistkat/PQCgenKAT_kem768_tmp1 \
 	nistkat/PQCgenKAT_kem1024_tmp1 \
-
+	nistkat/PQCgenKAT_kem512_tmp3a \
+	nistkat/PQCgenKAT_kem768_tmp3a \
+	nistkat/PQCgenKAT_kem1024_tmp3a \
+	nistkat/PQCgenKAT_kem512_tmp3b \
+	nistkat/PQCgenKAT_kem768_tmp3b \
+	nistkat/PQCgenKAT_kem1024_tmp3b \
 
 lib/libpqcrystals_fips202_ref.so: fips202.c fips202.h
 	mkdir -p lib
@@ -175,23 +186,60 @@ test/test_speed1024_tmp2: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h tes
 # TEMPO ALGORITHM 3a VARIANTS
 
 test/test_kyber512_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
-	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
 
 test/test_kyber768_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
-	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
 
 test/test_kyber1024_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
-	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
 
 test/test_speed512_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
-	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
 
 test/test_speed768_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
-	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
 
 test/test_speed1024_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
-	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
 
+nistkat/PQCgenKAT_kem512_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=2 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
+
+nistkat/PQCgenKAT_kem768_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=3 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
+
+nistkat/PQCgenKAT_kem1024_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=3a -DKYBER_K=4 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
+
+# TEMPO ALGORITHM 3b VARIANTS
+
+test/test_kyber512_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_kyber768_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_kyber1024_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_speed512_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+test/test_speed768_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+test/test_speed1024_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+nistkat/PQCgenKAT_kem512_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=2 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
+
+nistkat/PQCgenKAT_kem768_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=3 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
+
+nistkat/PQCgenKAT_kem1024_tmp3b: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
+	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=3b -DKYBER_K=4 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
 
 clean:
 	-$(RM) -f *.gcno *.gcda *.lcov *.o *.so
@@ -225,6 +273,18 @@ clean:
 	-$(RM) -f test/test_speed512_tmp3a
 	-$(RM) -f test/test_speed768_tmp3a
 	-$(RM) -f test/test_speed1024_tmp3a
+	-$(RM) -f nistkat/PQCgenKAT_kem512_tmp3a
+	-$(RM) -f nistkat/PQCgenKAT_kem768_tmp3a
+	-$(RM) -f nistkat/PQCgenKAT_kem1024_tmp3a
+	-$(RM) -f test/test_kyber512_tmp3a
+	-$(RM) -f test/test_kyber768_tmp3a
+	-$(RM) -f test/test_kyber1024_tmp3a
+	-$(RM) -f test/test_speed512_tmp3b
+	-$(RM) -f test/test_speed768_tmp3b
+	-$(RM) -f test/test_speed1024_tmp3b
+	-$(RM) -f nistkat/PQCgenKAT_kem512_tmp3b
+	-$(RM) -f nistkat/PQCgenKAT_kem768_tmp3b
+	-$(RM) -f nistkat/PQCgenKAT_kem1024_tmp3b
 	-$(RM) -f nistkat/*.req
 	-$(RM) -f nistkat/*.rsp
 	-$(RM) -rf lib/
