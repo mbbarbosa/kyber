@@ -26,6 +26,12 @@ test: \
   test/test_vectors512_tmp1 \
   test/test_vectors768_tmp1 \
   test/test_vectors1024_tmp1 \
+  test/test_kyber512_tmp2 \
+  test/test_kyber768_tmp2 \
+  test/test_kyber1024_tmp2 \
+  test/test_kyber512_tmp3a \
+  test/test_kyber768_tmp3a \
+  test/test_kyber1024_tmp3a \
 
 speed: \
   test/test_speed512 \
@@ -34,6 +40,12 @@ speed: \
   test/test_speed512_tmp1 \
   test/test_speed768_tmp1 \
   test/test_speed1024_tmp1 \
+  test/test_speed512_tmp2 \
+  test/test_speed768_tmp2 \
+  test/test_speed1024_tmp2 \
+  test/test_speed512_tmp3a \
+  test/test_speed768_tmp3a \
+  test/test_speed1024_tmp3a \
 
 shared: \
   lib/libpqcrystals_kyber512_ref.so \
@@ -140,6 +152,47 @@ nistkat/PQCgenKAT_kem768_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenK
 nistkat/PQCgenKAT_kem1024_tmp1: $(SOURCESKECCAK) $(HEADERSKECCAK) nistkat/PQCgenKAT_kem.c nistkat/rng.c nistkat/rng.h
 	$(CC) $(NISTFLAGS) -DTEMPO_ALGORITHM=1 -DKYBER_K=4 -o $@ $(SOURCESKECCAK) nistkat/rng.c nistkat/PQCgenKAT_kem.c $(LDFLAGS) -lcrypto
 
+# TEMPO ALGORITHM2 VARIANTS
+
+test/test_kyber512_tmp2: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_kyber768_tmp2: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_kyber1024_tmp2: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_speed512_tmp2: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+test/test_speed768_tmp2: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+test/test_speed1024_tmp2: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+# TEMPO ALGORITHM 3a VARIANTS
+
+test/test_kyber512_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_kyber768_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_kyber1024_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/test_kyber.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/test_kyber.c -lcrypto -o $@
+
+test/test_speed512_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=2 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+test/test_speed768_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=3 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+test/test_speed1024_tmp3a: $(SOURCESKECCAK) $(HEADERSKECCAK) test/cpucycles.h test/cpucycles.c test/speed_print.h test/speed_print.c test/test_speed.c randombytes.c
+	$(CC) $(CFLAGS) -DTEMPO_ALGORITHM=2 -DKYBER_K=4 $(SOURCESKECCAK) randombytes.c test/cpucycles.c test/speed_print.c test/test_speed.c -lcrypto -o $@
+
+
 clean:
 	-$(RM) -f *.gcno *.gcda *.lcov *.o *.so
 	-$(RM) -f test/test_kyber512
@@ -160,6 +213,18 @@ clean:
 	-$(RM) -f nistkat/PQCgenKAT_kem512_tmp1
 	-$(RM) -f nistkat/PQCgenKAT_kem768_tmp1
 	-$(RM) -f nistkat/PQCgenKAT_kem1024_tmp1
+	-$(RM) -f test/test_kyber512_tmp2
+	-$(RM) -f test/test_kyber768_tmp2
+	-$(RM) -f test/test_kyber1024_tmp2
+	-$(RM) -f test/test_speed512_tmp2
+	-$(RM) -f test/test_speed768_tmp2
+	-$(RM) -f test/test_speed1024_tmp2
+	-$(RM) -f test/test_kyber512_tmp3a
+	-$(RM) -f test/test_kyber768_tmp3a
+	-$(RM) -f test/test_kyber1024_tmp3a
+	-$(RM) -f test/test_speed512_tmp3a
+	-$(RM) -f test/test_speed768_tmp3a
+	-$(RM) -f test/test_speed1024_tmp3a
 	-$(RM) -f nistkat/*.req
 	-$(RM) -f nistkat/*.rsp
 	-$(RM) -rf lib/

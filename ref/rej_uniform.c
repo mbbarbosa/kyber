@@ -139,7 +139,7 @@ static unsigned int rej_uniform(int16_t *p, unsigned int ctr,
 *              - const xof_state *state: pointer to XOF state after absorb
 
 **************************************************/
-#define MAX_ITER (400/(XOF_BLOCKBYTES*8/12)+1)
+#define MAX_ITER (400/(XOF_BLOCKBYTES*8/12)+1) // 448 candidates if XOF_BLOCKBYTES = 168
 
 static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
   uint16_t ctr;
@@ -163,15 +163,17 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
 
 #elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 2)
 
-void gen_poly(uint16_t a[KYBER_N], const xof_state *state) {
-    keccak_state ctx;
-    uint8_t C[400]; // 400 bytes = 3200 bits
+#include <openssl/bn.h>
 
-    shake128_init(&ctx);
-    shake128_absorb(&ctx, seed, 34);
-    shake128_finalize(&ctx);
-    shake128_squeeze(C, sizeof(C), &ctx);
+#define XOF_BLOCKS 3
+#define BUF_SIZE (XOF_BLOCKBYTES * XOF_BLOCKS) // 504 bytes @ XOF_BLOCKBYTES = 168
+#define SIZE_BN 400
 
+static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
+    uint8_t buf[BUF_SIZE]; 
+
+    xof_squeezeblocks(buf, XOF_BLOCKS, state);
+    
     // create OpenSSL BN context and numbers
     BN_CTX *bn_ctx = BN_CTX_new();
     BIGNUM *x_bn = BN_new();
@@ -182,9 +184,9 @@ void gen_poly(uint16_t a[KYBER_N], const xof_state *state) {
     // set m = KYBER_Q
     BN_set_word(m_bn, KYBER_Q);
     
-    // set x_bn from the 400-byte buffer C 
+    // set x_bn from buffer C 
     // (load little-endian, as other algorithms in this library)
-    BN_lebin2bn(C, sizeof(C), x_bn);
+    BN_lebin2bn(buf, SIZE_BN, x_bn);
 
     for (uint16_t j = 0; j < KYBER_N; j++) {
         // quotient = x_bn / m_bn
@@ -207,13 +209,16 @@ void gen_poly(uint16_t a[KYBER_N], const xof_state *state) {
 
 #elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 3a)
 
-void algorithm3a(uint16_t a[KYBER_N], const uint8_t seed[34]) {
-    keccak_state ctx;
-    uint8_t C[24];
+#include <openssl/bn.h>
 
-    shake128_init(&ctx);
-    shake128_absorb(&ctx, seed, 34);
-    shake128_finalize(&ctx);
+#define BYTES_PER_COEFF 24
+#define XOF_BLOCKS (BYTES_PER_COEFF * KYBER_N / XOF_BLOCKBYTES  + 1)
+#define BUF_SIZE (XOF_BLOCKS * XOF_BLOCKBYTES)
+
+static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
+    uint8_t buf[BUF_SIZE]; 
+
+    xof_squeezeblocks(buf, XOF_BLOCKS, state);
 
     // create OpenSSL BN context and numbers
     BN_CTX *bn_ctx = BN_CTX_new();
@@ -225,11 +230,10 @@ void algorithm3a(uint16_t a[KYBER_N], const uint8_t seed[34]) {
     BN_set_word(m_bn, KYBER_Q);
 
     for (int i = 0; i < KYBER_N; i++) {
-        shake128_squeeze(C, 24, &ctx);
 
         // set x_bn from the 24-byte buffer C 
         // (load little-endian, as Algorithm 3B, to cross-check calculations)
-        BN_lebin2bn(C, 24, x_bn);
+        BN_lebin2bn(buf + i*BYTES_PER_COEFF, BYTES_PER_COEFF, x_bn);
 
         // compute remainder: r_bn = x_bn `mod` m_bn
         BN_mod(r_bn, x_bn, m_bn, bn_ctx);
@@ -283,7 +287,7 @@ uint16_t barrett_reduce(uint32_t x) {
     // if r < 0 then r = r + 2^32
     // r is declared as uint32_t, so it is *unsigned*
     // we check if r would have been negative by checking if the MSB is set
-    uint32_t mask = -(r >= 0x80000000); // mask is 0xFFFFFFFF if r is negative, 0 otherwise
+    uint32_t mask = ((int32_t)r) >> 31; // mask is 0xFFFFFFFF if r is negative, 0 otherwise
     r += (mask & 0x100000000ULL);
 
     // while r >= m do r = r - m, at most 2 loops
