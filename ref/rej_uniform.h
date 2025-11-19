@@ -10,7 +10,7 @@
 #define gen_poly_vector gen_poly_original
 #elif (defined (TEMPO_VECTOR_ALG) && (TEMPO_VECTOR_ALG == 1))
 #define gen_poly_vector gen_poly_tmp1
-#elif (defined (TEMPO_VECTOR_ALG) && (TEMPO_VECTOR_ALG == 2)
+#elif (defined (TEMPO_VECTOR_ALG) && (TEMPO_VECTOR_ALG == 2))
 #define gen_poly_vector gen_poly_tmp2
 #elif (defined (TEMPO_VECTOR_ALG) && (TEMPO_VECTOR_ALG == 3))
 #define gen_poly_vector gen_poly_tmp3a
