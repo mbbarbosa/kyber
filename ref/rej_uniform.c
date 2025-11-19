@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include <openssl/bn.h>
+
 #include "params.h"
 #include "rej_uniform.h"
 #include "poly.h"
@@ -9,8 +11,7 @@
 #error "Implementation of gen_matrix assumes that XOF_BLOCKBYTES is a multiple of 3"
 #endif
 
-#ifndef TEMPO_ALGORITHM
-
+#if (!(defined(TEMPO_VECTOR_ALG) && defined(TEMPO_MATRIX_ALG)))
 /*************************************************
 * Name:        rej_uniform
 *
@@ -24,7 +25,7 @@
 *
 * Returns number of sampled 16-bit integers (at most len)
 **************************************************/
-static unsigned int rej_uniform(int16_t *r,
+static unsigned int rej_uniform_original(int16_t *r,
                                 unsigned int len,
                                 const uint8_t *buf,
                                 unsigned int buflen)
@@ -59,7 +60,7 @@ static unsigned int rej_uniform(int16_t *r,
 **************************************************/
 #define GEN_MATRIX_NBLOCKS ((12*KYBER_N/8*(1 << 12)/KYBER_Q + XOF_BLOCKBYTES)/XOF_BLOCKBYTES)
 
-static void gen_poly(int16_t a[KYBER_N], xof_state *state)
+static void gen_poly_original(int16_t a[KYBER_N], xof_state *state)
 {
   unsigned int ctr, k;
   unsigned int buflen, off;
@@ -67,21 +68,22 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state)
 
   xof_squeezeblocks(buf, GEN_MATRIX_NBLOCKS, state);
   buflen = GEN_MATRIX_NBLOCKS*XOF_BLOCKBYTES;
-  ctr = rej_uniform(a, KYBER_N, buf, buflen);
+  ctr = rej_uniform_original(a, KYBER_N, buf, buflen);
 
   while(ctr < KYBER_N) {
     off = buflen % 3;
     for(k = 0; k < off; k++) buf[k] = buf[buflen - off + k];
     xof_squeezeblocks(buf + off, 1, state);
     buflen = off + XOF_BLOCKBYTES;
-    ctr += rej_uniform(a + ctr, KYBER_N - ctr, buf, buflen);
+    ctr += rej_uniform_original(a + ctr, KYBER_N - ctr, buf, buflen);
   }
 }
+#endif 
 
-#elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 1)
+#if ((defined(TEMPO_VECTOR_ALG) && (TEMPO_VECTOR_ALG == 1)) || (defined(TEMPO_MATRIX_ALG) && (TEMPO_MATRIX_ALG == 1)))
 
 /*************************************************
-* Name:        rej_uniform
+* Name:        rej_uniform_tmp1
 *
 * Description: Run rejection sampling on uniform random bytes to generate
 *              uniform random integers mod q
@@ -94,11 +96,11 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state)
 * Returns number of sampled 16-bit integers (at most len)
 **************************************************/
 
-#define lt_1mask(x,y) (uint16_t)((((int16_t) x) - ((int16_t) y)) >> 15)      // 0xffffffff if  x < y, 0x00000000 otherwise
-#define diff_1mask(x,y) (uint16_t)((0-((int16_t)((x^y) & 0x7fff))) >> 15)    // 0xffffffff if x != y, 0x00000000 otherwise
-#define eq_1mask(x,y) (uint16_t)(~diff_1mask(x,y))                           // 0xffffffff if x == y, 0x00000000 otherwise
+#define lt_1mask_16(x,y) (uint16_t)((((int16_t) x) - ((int16_t) y)) >> 15)      // 0xffffffff if  x < y, 0x00000000 otherwise
+#define diff_1mask_16(x,y) (uint16_t)((0-((int16_t)((x^y) & 0x7fff))) >> 15)    // 0xffffffff if x != y, 0x00000000 otherwise
+#define eq_1mask_16(x,y) (uint16_t)(~diff_1mask_16(x,y))                           // 0xffffffff if x == y, 0x00000000 otherwise
 
-static unsigned int rej_uniform(int16_t *p, unsigned int ctr,
+static unsigned int rej_uniform_tmp1(int16_t *p, unsigned int ctr,
                                 const uint8_t *buf,
                                 unsigned int buflen)
 {
@@ -112,24 +114,24 @@ static unsigned int rej_uniform(int16_t *p, unsigned int ctr,
     pos += 3;
 
     for (unsigned int j = 0; j < KYBER_N; j++) {
-      match = eq_1mask(j,ctr);
+      match = eq_1mask_16(j,ctr);
       p[j] = (~match & p[j]) | (match & d1);
     }
-    acceptable_d1 = lt_1mask(d1,KYBER_Q); 
+    acceptable_d1 = lt_1mask_16(d1,KYBER_Q); 
     ctr += acceptable_d1 & 1;
     
     for (unsigned int j = 0; j < KYBER_N; j++) {
-      match = eq_1mask(j,ctr);
+      match = eq_1mask_16(j,ctr);
       p[j] = (~match & p[j]) | (match & d2);
     }
-    acceptable_d2 = lt_1mask(d2,KYBER_Q); 
+    acceptable_d2 = lt_1mask_16(d2,KYBER_Q); 
     ctr += acceptable_d2 & 1;
   }
   return ctr;
 }
 
 /*************************************************
-* Name:        gen_poly
+* Name:        gen_poly_tmp1
 *
 * Description: Deterministically generate polynomial p from a seed. 
 *              Performs rejection sampling on output of a XOF in constant
@@ -139,9 +141,9 @@ static unsigned int rej_uniform(int16_t *p, unsigned int ctr,
 *              - const xof_state *state: pointer to XOF state after absorb
 
 **************************************************/
-#define MAX_ITER (400/(XOF_BLOCKBYTES*8/12)+1) // 448 candidates if XOF_BLOCKBYTES = 168
+#define MAX_ITER_TMP1 (400/(XOF_BLOCKBYTES*8/12)+1) // 448 candidates if XOF_BLOCKBYTES = 168
 
-static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
+static void gen_poly_tmp1(int16_t a[KYBER_N], xof_state *state) {
   uint16_t ctr;
   unsigned int k, buflen, off;
   uint8_t buf[XOF_BLOCKBYTES+2];
@@ -150,29 +152,29 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
   buflen = XOF_BLOCKBYTES;
 
   ctr = 0;
-  ctr = rej_uniform(a, ctr, buf, buflen);
+  ctr = rej_uniform_tmp1(a, ctr, buf, buflen);
 
-  for (unsigned int iter = 0; iter < MAX_ITER; iter++) {
+  for (unsigned int iter = 0; iter < MAX_ITER_TMP1; iter++) {
     off = buflen % 3;
     for(k = 0; k < off; k++) buf[k] = buf[buflen - off + k];
     xof_squeezeblocks(buf + off, 1, state);
     buflen = off + XOF_BLOCKBYTES;
-    ctr = rej_uniform(a, ctr, buf, buflen);
+    ctr = rej_uniform_tmp1(a, ctr, buf, buflen);
   }
 }
 
-#elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 2)
+#endif 
 
-#include <openssl/bn.h>
+#if ((defined(TEMPO_VECTOR_ALG) && (TEMPO_VECTOR_ALG == 2)) || (defined(TEMPO_MATRIX_ALG) && (TEMPO_MATRIX_ALG == 2)))
 
-#define XOF_BLOCKS 3
-#define BUF_SIZE (XOF_BLOCKBYTES * XOF_BLOCKS) // 504 bytes @ XOF_BLOCKBYTES = 168
+#define XOF_BLOCKS_TMP2 3
+#define BUF_SIZE_TMP2 (XOF_BLOCKBYTES * XOF_BLOCKS_TMP2) // 504 bytes @ XOF_BLOCKBYTES = 168
 #define SIZE_BN 400
 
-static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
-    uint8_t buf[BUF_SIZE]; 
+static void gen_poly_tmp2(int16_t a[KYBER_N], xof_state *state) {
+    uint8_t buf[BUF_SIZE_TMP2]; 
 
-    xof_squeezeblocks(buf, XOF_BLOCKS, state);
+    xof_squeezeblocks(buf, XOF_BLOCKS_TMP2, state);
     
     // create OpenSSL BN context and numbers
     BN_CTX *bn_ctx = BN_CTX_new();
@@ -207,18 +209,18 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
     BN_CTX_free(bn_ctx);
 }
 
-#elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 3)
+#endif 
 
-#include <openssl/bn.h>
+#if ((defined(TEMPO_VECTOR_ALG) && (TEMPO_VECTOR_ALG == 3)) || (defined(TEMPO_MATRIX_ALG) && (TEMPO_MATRIX_ALG == 3)))
 
-#define BYTES_PER_COEFF 24
-#define XOF_BLOCKS (BYTES_PER_COEFF * KYBER_N / XOF_BLOCKBYTES  + 1)
-#define BUF_SIZE (XOF_BLOCKS * XOF_BLOCKBYTES)
+#define BYTES_PER_COEFF_TMP3a 24
+#define XOF_BLOCKS_TMP3a (BYTES_PER_COEFF_TMP3a * KYBER_N / XOF_BLOCKBYTES  + 1)
+#define BUF_SIZE_TMP3a (XOF_BLOCKS_TMP3a * XOF_BLOCKBYTES)
 
-static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
-    uint8_t buf[BUF_SIZE]; 
+static void gen_poly_tmp3a(int16_t a[KYBER_N], xof_state *state) {
+    uint8_t buf[BUF_SIZE_TMP3a]; 
 
-    xof_squeezeblocks(buf, XOF_BLOCKS, state);
+    xof_squeezeblocks(buf, XOF_BLOCKS_TMP3a, state);
 
     // create OpenSSL BN context and numbers
     BN_CTX *bn_ctx = BN_CTX_new();
@@ -233,7 +235,7 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
 
         // set x_bn from the 24-byte buffer C 
         // (load little-endian, as Algorithm 3B, to cross-check calculations)
-        BN_lebin2bn(buf + i*BYTES_PER_COEFF, BYTES_PER_COEFF, x_bn);
+        BN_lebin2bn(buf + i*BYTES_PER_COEFF_TMP3a, BYTES_PER_COEFF_TMP3a, x_bn);
 
         // compute remainder: r_bn = x_bn `mod` m_bn
         BN_mod(r_bn, x_bn, m_bn, bn_ctx);
@@ -248,7 +250,9 @@ static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
     BN_CTX_free(bn_ctx);
 }
 
-#elif defined(TEMPO_ALGORITHM) && (TEMPO_ALGORITHM == 4)
+#endif 
+
+#if ((defined(TEMPO_VECTOR_ALG) && (TEMPO_VECTOR_ALG == 4)) || (defined(TEMPO_MATRIX_ALG) && (TEMPO_MATRIX_ALG == 4)))
 
 /*
 TODO: check PQCLEAN_MLKEM512_CLEAN_montgomery_reduce(int32_t a) and
@@ -268,7 +272,7 @@ const uint16_t pow2_mod_m[] = {
     2982  // 2^{i*32} = 2^160 mod 3329 (for x5)
 };
 
-#define lt_1mask(x,y) (uint32_t)((((int32_t) x) - ((int32_t) y)) >> 31)      // 0xffffffffffffffff if x < y and 0 otherwise
+#define lt_1mask_32(x,y) (uint32_t)((((int32_t) x) - ((int32_t) y)) >> 31)      // 0xffffffffffffffff if x < y and 0 otherwise
 
 /*
 Based on Barrett reduction described in HAC, Algorithm 14.42.
@@ -285,7 +289,7 @@ static uint16_t barrett_reduce32(uint32_t x) {
     q3 = ((uint64_t)x * mu) >> 32;
     r = x - (uint32_t)(q3 * m); 
 
-    uint32_t mask = ~lt_1mask(r,m); // mask is 0 if r < m, 0xffffffff otherwise
+    uint32_t mask = ~lt_1mask_32(r,m); // mask is 0 if r < m, 0xffffffff otherwise
     r -= (mask & m);
     return (uint16_t)r;
 }
@@ -311,19 +315,19 @@ static uint16_t barrett_reduce192(uint32_t x[6]) {
     return barrett_reduce32(temp);
 }
 
-#define BYTES_PER_COEFF 24
-#define XOF_BLOCKS (BYTES_PER_COEFF * KYBER_N / XOF_BLOCKBYTES  + 1)
-#define BUF_SIZE (XOF_BLOCKS * XOF_BLOCKBYTES)
+#define BYTES_PER_COEFF_TMP3b 24
+#define XOF_BLOCKS_TMP3b (BYTES_PER_COEFF_TMP3b * KYBER_N / XOF_BLOCKBYTES  + 1)
+#define BUF_SIZE_TMP3b (XOF_BLOCKS_TMP3b * XOF_BLOCKBYTES)
 
-static void gen_poly(int16_t a[KYBER_N], xof_state *state) {
-    uint8_t buf[BUF_SIZE]; 
+static void gen_poly_tmp3b(int16_t a[KYBER_N], xof_state *state) {
+    uint8_t buf[BUF_SIZE_TMP3b]; 
     uint32_t x[6];
 
-    xof_squeezeblocks(buf, XOF_BLOCKS, state);
+    xof_squeezeblocks(buf, XOF_BLOCKS_TMP3b, state);
 
     for (size_t j = 0; j < KYBER_N; j++) {
         for (int i = 0; i < 6; i++) {
-            x[i] = *((uint32_t*)(buf+j * BYTES_PER_COEFF) + i);
+            x[i] = *((uint32_t*)(buf+j * BYTES_PER_COEFF_TMP3b) + i);
         }
         a[j] = barrett_reduce192(x);
     }
@@ -357,7 +361,7 @@ void gen_matrix(polyvec *a, const uint8_t seed[KYBER_SYMBYTES], int transposed)
       else
         xof_absorb(&state, seed, j, i);
 
-      gen_poly(a[i].vec[j].coeffs,&state);
+      gen_poly_matrix(a[i].vec[j].coeffs,&state);
       }
     }
  }
@@ -382,7 +386,7 @@ void gen_vector(polyvec *v, const uint8_t seed[KYBER_SYMBYTES])
 
   for(i=0;i<KYBER_K;i++) {
     xof_absorb(&state, seed, i, 0); // take row 0
-    gen_poly(v->vec[i].coeffs,&state);
+    gen_poly_vector(v->vec[i].coeffs,&state);
   }
 }
 
